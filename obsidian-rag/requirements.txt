@@ -1,0 +1,5 @@
+chromadb
+ollama
+python-frontmatter
+watchdog
+pytest
