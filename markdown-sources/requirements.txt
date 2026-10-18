@@ -1,4 +1,6 @@
 python-frontmatter
+chromadb
+ollama
 pytest
 # optional, only for md_rag/langchain_loader.py
 langchain-core
