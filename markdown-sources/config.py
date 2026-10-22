@@ -61,3 +61,17 @@ ANSWER_TOP_K = 4           # chunks given to the model as context
 MIN_SIMILARITY = 0.45      # below this a chunk counts as "not relevant"; tune per embedding model
 CHAT_TEMPERATURE = 0.1     # low = sticks to the text, less creative
 HISTORY_TURNS = 3          # earlier Q&A pairs kept in interactive chat
+EXPAND_SECTIONS = True     # also give the model the other chunks of a matched section
+                           # (e.g. the rest of a table that was split into pieces)
+MAX_CONTEXT_CHARS = 6000   # upper limit for all passages put in the prompt
+
+# agent.py / intake.py / servicenow.py (AWS account requests)
+ACCOUNT_FORM = PROJECT_DIR / "forms" / "aws_account.yaml"   # fields, questions and rules
+EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", CHAT_MODEL)  # model that pulls values out of replies
+REQUESTER_EMAIL = os.environ.get("REQUESTER_EMAIL", "")      # who is chatting; asked if empty
+ALLOWED_EMAIL_DOMAINS = []                                    # e.g. ["sysco.com"]; empty = any domain
+# fake    = save the ticket as a JSON file in data/servicenow/ and return a dummy RITM number
+# dry_run = print what would be sent, create nothing
+# live    = real ServiceNow API (not built yet: needs instance, catalog item and credentials)
+SERVICENOW_MODE = os.environ.get("SERVICENOW_MODE", "fake")
+SERVICENOW_FAKE_DIR = PROJECT_DIR / "data" / "servicenow"

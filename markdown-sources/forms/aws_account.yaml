@@ -1,0 +1,84 @@
+# AWS account request form (dummy version, until the real ServiceNow form is available).
+#
+# Each field:
+#   name        key used in code and in the ticket's variables
+#   label       what the user sees
+#   type        text | email
+#   question    how the agent asks for it
+#   hint        shown after an invalid answer (and with the question)
+#   prefill     "requester" = taken from REQUESTER_EMAIL / --requester if known
+#   normalize   slug = lowercase, spaces -> hyphens
+#   min_length, max_length, pattern, not_allowed   validation rules for text
+#   person_only true = reject team mailboxes / distribution lists (email fields)
+#   servicenow  variable name in the real catalog item (fill in later)
+#   cues        words showing the user means THIS field. A value for a field that was not
+#               just asked is accepted only if one of its cues is in the message, so
+#               "ruwan@x.com" given as your email can't also fill Technical Owner.
+
+name: aws_account
+title: AWS account request
+ticket:
+  short_description: "New AWS account: {account_name}"
+  assignment_group: Cloud Engineering
+  category: Cloud Account Request
+
+fields:
+  - name: requested_for
+    label: Requested for
+    type: email
+    question: "What is your email address? I'll raise the request on your behalf."
+    hint: "Your own work email, e.g. jane.doe@company.com."
+    prefill: requester
+    person_only: true
+    servicenow: requested_for
+    cues: [my email, my address, "i am", "i'm", "me:"]
+
+  - name: account_name
+    label: Account Name
+    type: text
+    question: "What short, meaningful name should the new AWS account have?"
+    hint: "3-40 characters: lowercase letters, numbers and hyphens, starting with a letter. Say what it is for, e.g. rme-orders-nonprod."
+    normalize: slug
+    min_length: 3
+    max_length: 40
+    pattern: "^[a-z][a-z0-9-]*[a-z0-9]$"
+    not_allowed: [test, account, aws, new, temp, my-account, aws-account, new-account]
+    servicenow: account_name
+    cues: [called, named, name it, account name, name is]
+
+  - name: app_team_name
+    label: App/Team name
+    type: text
+    question: "Which application or team is this account for?"
+    hint: "The application or team name, e.g. RME or Order Management."
+    min_length: 2
+    max_length: 60
+    servicenow: app_team_name
+    cues: [team, application, app]
+
+  - name: support_group
+    label: ServiceNow support group
+    type: text
+    question: "Which ServiceNow support group will support this account?"
+    hint: "The ServiceNow assignment group that handles incidents for it, e.g. RME-AppSupport."
+    min_length: 2
+    max_length: 80
+    servicenow: support_group
+    cues: [support group, assignment group, supported by, support team]
+
+  - name: technical_owner
+    label: Technical Owner
+    type: email
+    question: "Who is the technical owner? Please give one email address."
+    hint: "Exactly one email address, e.g. jane.doe@company.com."
+    servicenow: technical_owner
+    cues: [technical owner, tech owner, owner]
+
+  - name: budget_approver
+    label: Budget Approver
+    type: email
+    question: "Who approves the budget for this account? Please give the person's email address."
+    hint: "One person's email address, not a team mailbox or distribution list."
+    person_only: true
+    servicenow: budget_approver
+    cues: [budget, approver, approve, approval]

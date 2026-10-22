@@ -9,7 +9,7 @@ import pytest
 
 from md_rag.chunking import chunk_note
 from md_rag.indexer import sync
-from md_rag.retriever import search
+from md_rag.retriever import expand_sections, search
 from md_rag.sources import load_source
 from md_rag.store import get_collection, reset_collection
 
@@ -115,3 +115,17 @@ def test_wrong_embedding_model_is_refused(tmp_path):
         get_collection(path=tmp_path, name="m_chunks", embedding_model="model-b")
     reset_collection(path=tmp_path, name="m_chunks")
     assert get_collection(path=tmp_path, name="m_chunks", embedding_model="model-b").count() == 0
+
+
+def test_expand_sections_adds_the_rest_of_a_split_table(env):
+    _, col, run, _ = env
+    run()
+    table = [m for m in col.get(include=["metadatas"])["metadatas"] if "Food Reference" in m["heading_path"]]
+    assert len(table) == 3                                    # the big table is stored as 3 chunks
+    piece2 = next(m for m in table if m["chunk_index"] == min(t["chunk_index"] for t in table) + 1)
+    rec = col.get(ids=[f"docs:{piece2['note_path']}::{piece2['chunk_index']}"], include=["documents"])
+    hit = {"id": rec["ids"][0], "text": rec["documents"][0], "similarity": 0.7, "distance": 0.3, **piece2}
+    out = expand_sections([hit], collection=col)
+    assert [o["chunk_index"] for o in out] == sorted(t["chunk_index"] for t in table)   # all 3, in order
+    assert sum(o.get("expanded", False) for o in out) == 2
+    assert expand_sections([hit], collection=col, max_chars=len(hit["text"])) == [hit]  # budget respected

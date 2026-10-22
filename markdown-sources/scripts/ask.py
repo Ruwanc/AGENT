@@ -17,12 +17,16 @@ def print_sources(result, show_context):
     if show_context and result["hits"]:
         print("\n--- context given to the model (searched for: %r) ---" % result["query"])
         print(chat.build_context(result["hits"]))
+    if result.get("copied"):
+        print("\n(!) The model copied the passages instead of answering. Ask again, or try a "
+              "bigger model, e.g. --model qwen3:4b")
     if result["sources"]:
         print("\nSources:")
         for s in result["sources"]:
             mark = "*" if s["cited"] else " "
+            extra = ", added: same section" if s.get("expanded") else ""
             print(f" {mark}[{s['n']}] {s['source']}:{s['note_path']} — {s['heading_path']}"
-                  f"  (similarity {s['similarity']:.2f})")
+                  f"  (similarity {s['similarity']:.2f}{extra})")
         if not any(s["cited"] for s in result["sources"]):
             print("  (the model did not cite any passage; check the answer against these)")
         else:
@@ -32,7 +36,7 @@ def print_sources(result, show_context):
 def run(question, args, history=()):
     print("\nAnswer: ", end="", flush=True)
     result = chat.ask(question, k=args.k, source=args.source, history=history,
-                      min_similarity=args.min_similarity,
+                      min_similarity=args.min_similarity, expand=not args.no_expand,
                       on_token=lambda t: print(t, end="", flush=True),
                       chat_fn=lambda m, on_token: chat.ollama_chat(m, model=args.model, on_token=on_token))
     print()
@@ -48,6 +52,7 @@ parser.add_argument("--model", default=config.CHAT_MODEL, help="Ollama chat mode
 parser.add_argument("--min-similarity", type=float, default=config.MIN_SIMILARITY,
                     help="chunks below this are ignored (0-1)")
 parser.add_argument("--show-context", action="store_true", help="print the passages sent to the model")
+parser.add_argument("--no-expand", action="store_true", help="don't add the rest of matched sections")
 args = parser.parse_args()
 
 print(f"chat model: {args.model}   embeddings: {config.EMBEDDING_MODEL}")

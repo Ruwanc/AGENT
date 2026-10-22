@@ -83,3 +83,14 @@ def query(collection, embedding, k=5, where=None):
         for i, doc, meta, dist in zip(res["ids"][0], res["documents"][0],
                                       res["metadatas"][0], res["distances"][0])
     ]
+
+
+def get_section(collection, source, note_path, heading_path):
+    """All chunks of one section (same file + heading path), in document order."""
+    res = collection.get(
+        where={"$and": [{"source": source}, {"note_path": note_path}, {"heading_path": heading_path}]},
+        include=["documents", "metadatas"],
+    )
+    rows = [{"id": i, "text": doc, **meta}
+            for i, doc, meta in zip(res["ids"], res["documents"], res["metadatas"])]
+    return sorted(rows, key=lambda r: r["chunk_index"])

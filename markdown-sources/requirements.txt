@@ -1,4 +1,5 @@
 python-frontmatter
+pyyaml
 chromadb
 ollama
 pytest
