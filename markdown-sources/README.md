@@ -19,13 +19,14 @@ markdown-sources/
   md_rag/intake.py            asks the form fields step by step, validates, summary, confirm
   md_rag/validators.py        plain-Python rules (lengths, patterns, one email, person not team)
   md_rag/forms.py             loads a form definition from forms/*.yaml
-  md_rag/servicenow.py        creates the ticket: fake (JSON file) | dry_run | live (not built yet)
+  md_rag/servicenow.py        creates the ticket: fake (JSON file) | dry_run | live (REST API)
   forms/aws_account.yaml      the AWS account form: fields, questions, hints, rules
   md_rag/langchain_loader.py  optional: same output as LangChain Documents
   scripts/index.py            build or update the vector DB
   scripts/search.py           ask a question, see the matching chunks
   scripts/ask.py              ask a question, get an answer with sources (or chat mode)
   scripts/agent.py            the agent chat: docs Q&A + AWS account requests
+  scripts/check_servicenow.py test the live ServiceNow login/settings (creates nothing)
   scripts/inspect_db.py       what is stored in the DB
   scripts/check_embeddings.py health check: Ollama, vectors, meaning, DB, retrieval
   scripts/inspect_chunks.py   report of every chunk, no Ollama/Chroma needed
@@ -114,7 +115,49 @@ message only if the message names it (its `cues`, e.g. "technical owner", "budge
 contains the value, so one email can't silently fill several fields.
 
 To change the form, edit the YAML: add a field, change a question, hint, cue or rule. No code
-change is needed. `live` mode needs the real instance URL, catalog item and credentials.
+change is needed.
+
+## Connect to the real ServiceNow (live mode)
+
+**1. Put the service account in `.env`** (git-ignored; never commit it or paste it into a chat):
+
+```bash
+cp .env.example .env      # then edit .env: SN_INSTANCE, SN_USERNAME, SN_PASSWORD, SN_API, ...
+pip install -r requirements.txt     # adds requests + python-dotenv
+```
+
+**2. Choose how tickets are created** (`SN_API` in `.env`):
+
+| SN_API | What it calls | Use when |
+|---|---|---|
+| `catalog` (recommended) | `POST /api/sn_sc/servicecatalog/items/{SN_CATALOG_ITEM_SYS_ID}/order_now` | There is (or will be) an "AWS account request" catalog item. Creates REQ + RITM and runs its approvals. |
+| `table` | `POST /api/now/table/{SN_TABLE}` | First smoke test, or no catalog item yet. Values go into the description. |
+
+Catalog item sys_id: open the item in ServiceNow → right-click the header → *Copy sys_id*.
+
+**3. Check the connection (creates nothing):**
+
+```bash
+python -m scripts.check_servicenow --email you@company.com
+```
+
+It tests login, a user lookup and the catalog item, and lists the item's real variable
+names. Copy those into the `servicenow:` lines of `forms/aws_account.yaml`. If a variable is a
+user Reference (type 8), add `servicenow_ref: sys_user` to that field so the agent sends the
+user's sys_id instead of the email text.
+
+**4. Run it:** try `SERVICENOW_MODE=dry_run` first, then
+`SERVICENOW_MODE=live python -m scripts.agent`. Use a dev/test instance before production.
+
+**What the service account needs** (ask the ServiceNow admins):
+- REST API access (web service access; not SSO-only, so basic or OAuth login works)
+- read on `sys_user` (email lookup) and `sc_req_item` (to get the RITM number)
+- permission to order the catalog item for someone else (catalog mode, `sysparm_requested_for`), or create on `SN_TABLE` (table mode)
+- for OAuth (`SN_AUTH=oauth`): an Application Registry client id/secret
+
+Errors (wrong password, missing role, wrong sys_id, VPN down, timeout) are shown in the chat
+and your answers are kept, so you can fix `.env` and reply `yes` again. After a **timeout**,
+check ServiceNow first: the request may have been created.
 
 ## Add your own folders
 

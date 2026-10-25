@@ -10,7 +10,9 @@
 #   normalize   slug = lowercase, spaces -> hyphens
 #   min_length, max_length, pattern, not_allowed   validation rules for text
 #   person_only true = reject team mailboxes / distribution lists (email fields)
-#   servicenow  variable name in the real catalog item (fill in later)
+#   servicenow  variable name in the real catalog item (python -m scripts.check_servicenow lists them)
+#   servicenow_ref  sys_user = that variable is a Reference to a user, so the agent looks the
+#               email up in ServiceNow and sends the user's sys_id (leave out for text variables)
 #   cues        words showing the user means THIS field. A value for a field that was not
 #               just asked is accepted only if one of its cues is in the message, so
 #               "ruwan@x.com" given as your email can't also fill Technical Owner.

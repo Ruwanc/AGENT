@@ -216,6 +216,7 @@ class Intake:
         if self.ticket.get("mode") == "dry_run":
             return ("Dry run: nothing was created. This is what would be sent:\n" +
                     json.dumps(self.ticket["payload"], indent=2))
+        link = f"\nTrack it here: {self.ticket['url']}" if self.ticket.get("url") else ""
         return (f"Done. Request {self.ticket['number']} was created on behalf of "
                 f"{self.values.get('requested_for', 'you')} and assigned to "
-                f"{self.form.ticket.get('assignment_group', 'the team')}.")
+                f"{self.form.ticket.get('assignment_group', 'the team')}.{link}")

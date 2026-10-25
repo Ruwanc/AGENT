@@ -8,6 +8,14 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
 
+# Secrets (ServiceNow login) live in a local .env file next to this one, never in Git.
+# Copy .env.example to .env and fill it in. Real environment variables win over .env.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(PROJECT_DIR / ".env")
+except ImportError:          # python-dotenv not installed: plain environment variables still work
+    pass
+
 SOURCES = [
     {"name": "docs", "path": os.environ.get("DOCS_PATH", str(PROJECT_DIR / "sample_docs"))},
     # {"name": "work-docs", "path": "/Users/you/repos/platform/docs"},
@@ -72,6 +80,20 @@ REQUESTER_EMAIL = os.environ.get("REQUESTER_EMAIL", "")      # who is chatting; 
 ALLOWED_EMAIL_DOMAINS = []                                    # e.g. ["sysco.com"]; empty = any domain
 # fake    = save the ticket as a JSON file in data/servicenow/ and return a dummy RITM number
 # dry_run = print what would be sent, create nothing
-# live    = real ServiceNow API (not built yet: needs instance, catalog item and credentials)
+# live    = real ServiceNow REST API (settings below, secrets in .env)
 SERVICENOW_MODE = os.environ.get("SERVICENOW_MODE", "fake")
 SERVICENOW_FAKE_DIR = PROJECT_DIR / "data" / "servicenow"
+
+# ---- live ServiceNow (only used when SERVICENOW_MODE=live). Values come from .env.
+SN_INSTANCE = os.environ.get("SN_INSTANCE", "")            # e.g. https://yourcompanydev.service-now.com
+SN_AUTH = os.environ.get("SN_AUTH", "basic")               # basic | oauth
+SN_USERNAME = os.environ.get("SN_USERNAME", "")            # the service account
+SN_PASSWORD = os.environ.get("SN_PASSWORD", "")
+SN_CLIENT_ID = os.environ.get("SN_CLIENT_ID", "")          # oauth only
+SN_CLIENT_SECRET = os.environ.get("SN_CLIENT_SECRET", "")  # oauth only
+# catalog = order a Service Catalog item (best: runs the item's approvals and workflow)
+# table   = insert a record straight into a table (simple; good for a first test)
+SN_API = os.environ.get("SN_API", "catalog")
+SN_CATALOG_ITEM_SYS_ID = os.environ.get("SN_CATALOG_ITEM_SYS_ID", "")   # catalog mode
+SN_TABLE = os.environ.get("SN_TABLE", "incident")                       # table mode
+SN_TIMEOUT = float(os.environ.get("SN_TIMEOUT", "30"))                  # seconds per call

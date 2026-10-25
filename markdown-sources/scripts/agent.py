@@ -15,7 +15,7 @@ import sys
 import config
 from md_rag import chat
 from md_rag.agent import Agent
-from md_rag.servicenow import get_client
+from md_rag.servicenow import LiveServiceNow, get_client
 
 parser = argparse.ArgumentParser(description="Docs Q&A + AWS account request agent")
 parser.add_argument("--requester", default=config.REQUESTER_EMAIL, help="your email (asked if empty)")
@@ -52,6 +52,11 @@ def quiet_answer(question):
     return chat.ask(question, chat_fn=lambda m, on_token: chat.ollama_chat(m, model=args.model))
 
 
+if args.mode == "live":
+    missing = LiveServiceNow().check_settings()
+    if missing:
+        sys.exit("Live ServiceNow settings missing in .env: " + ", ".join(missing) +
+                 "\nRun python -m scripts.check_servicenow after filling them in.")
 agent = Agent(requester=args.requester, answer_fn=answer, servicenow=get_client(args.mode))
 agent_help = quiet_answer
 print(f"chat model: {args.model}   ServiceNow mode: {args.mode}   requester: {args.requester or '(will ask)'}")

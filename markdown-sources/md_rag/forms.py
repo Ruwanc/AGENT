@@ -21,6 +21,8 @@ class Field:
     not_allowed: list = field(default_factory=list)
     person_only: bool = False
     servicenow: str = ""                # variable name in the real ServiceNow form
+    servicenow_ref: str = ""            # "sys_user" = the variable is a user reference: send the
+                                        # sys_id of the user with this email, not the email text
     cues: list = field(default_factory=list)   # words that show a message is about THIS field
 
 
