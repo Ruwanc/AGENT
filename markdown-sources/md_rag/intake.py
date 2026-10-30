@@ -38,12 +38,15 @@ def llm_extract(text, form, current, values, model=EXTRACT_MODEL):
     schema = {"type": "object",
               "properties": {f.name: {"type": "string"} for f in form.fields},
               "additionalProperties": False}
-    field_list = "\n".join(f"- {f.name} ({f.label}): {f.hint or f.question}" for f in form.fields)
+    # questions only, no hints: hints contain examples ("e.g. RME-AppSupport") that a
+    # small model would copy as if the user had typed them
+    field_list = "\n".join(f"- {f.name} ({f.label}): {f.question}" for f in form.fields)
     asked = form.field(current).question if current else "(nothing yet)"
     messages = [
         {"role": "system", "content":
             "You extract form values from one chat message. Return JSON containing ONLY the fields "
-            "the message clearly states. Copy values exactly as the user wrote them. "
+            "the message clearly states. Copy values exactly as the user wrote them; never use "
+            "example values. "
             "A value answers the question that was asked, unless the message explicitly names "
             "another field (e.g. 'the technical owner is ...'). Use each value for ONE field only. "
             "Never guess, never invent, never fill a field the message does not mention."},
@@ -162,12 +165,14 @@ class Intake:
     def _apply(self, text, use_raw):
         """Extract + validate values from one message. Returns (accepted labels, error messages)."""
         found = self.extract_fn(text, self.form, self.current, dict(self.values)) or {}
-        # The field just asked always takes the reply. Any OTHER field is filled only if the
-        # message names it (a cue word) AND contains the value. Without this, a small model
-        # copies "ruwan@x.com" into every email field and "ruwan" into Account Name.
+        # A value is kept only if the user really typed it (_mentioned). Small models
+        # sometimes return an example from the hint instead (e.g. "RME-AppSupport" when the
+        # user typed "Cloud Engineering"); that value is dropped and the raw reply is used.
+        # A field other than the one just asked also needs a cue word in the message.
+        # Without this, "ruwan@x.com" would fill every email field and "ruwan" Account Name.
         candidates = {k: v for k, v in found.items()
-                      if k == self.current
-                      or (_mentioned(v, text) and has_cue(self.form.field(k), text))}
+                      if _mentioned(v, text)
+                      and (k == self.current or has_cue(self.form.field(k), text))}
         others_given = any(k != self.current for k in candidates)
         if use_raw and self.current and self.current not in candidates and not others_given:
             candidates[self.current] = text          # the reply IS the answer to the question asked

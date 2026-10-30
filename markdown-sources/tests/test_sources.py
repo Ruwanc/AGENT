@@ -112,7 +112,8 @@ def test_chunk_metadata_is_flat(tmp_path):
 # --- the sample docs ------------------------------------------------------------
 def test_load_source_sample_docs():
     docs = {d["path"]: d for d in load_source({"name": "docs", "path": str(SAMPLE_DOCS)})}
-    assert set(docs) == {"README.md", "chunking-test.md", "guides/install.md"}
+    # >= : your own files (tags.md, labels.md, ...) may sit next to the samples
+    assert set(docs) >= {"README.md", "chunking-test.md", "guides/install.md"}
     assert docs["README.md"]["title"] == "Petcare API"
     assert docs["guides/install.md"]["tags"] == ["install", "setup"]
     assert "architecture.png" not in docs["guides/install.md"]["body"]

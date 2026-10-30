@@ -27,6 +27,7 @@ markdown-sources/
   scripts/ask.py              ask a question, get an answer with sources (or chat mode)
   scripts/agent.py            the agent chat: docs Q&A + AWS account requests
   scripts/check_servicenow.py test the live ServiceNow login/settings (creates nothing)
+  ui/chat_app.py              browser chat for the agent (streamlit run ui/chat_app.py)
   scripts/inspect_db.py       what is stored in the DB
   scripts/check_embeddings.py health check: Ollama, vectors, meaning, DB, retrieval
   scripts/inspect_chunks.py   report of every chunk, no Ollama/Chroma needed
@@ -116,6 +117,20 @@ contains the value, so one email can't silently fill several fields.
 
 To change the form, edit the YAML: add a field, change a question, hint, cue or rule. No code
 change is needed.
+
+## Chat in the browser (simple UI)
+
+```bash
+pip install -r requirements.txt          # adds streamlit
+streamlit run ui/chat_app.py             # opens http://localhost:8501
+AGENT_UI_DEMO=1 streamlit run ui/chat_app.py   # try the screens without Ollama
+```
+
+The same agent as `scripts.agent`, in a chat page: ask about your documents (answers stream
+in, sources are under "Sources"), or say "I need a new AWS account". The sidebar sets your
+email, the ServiceNow mode (fake / dry_run / live) and the chat model; click *New
+conversation* after changing them. Run it from the project root so `.streamlit/config.toml`
+is used (no usage statistics sent, only reachable from your own computer).
 
 ## Connect to the real ServiceNow (live mode)
 

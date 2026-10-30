@@ -32,7 +32,9 @@ def fake_embed(texts):
 @pytest.fixture
 def env(tmp_path):
     docs = tmp_path / "docs"
-    shutil.copytree(SAMPLE, docs)
+    # only the 3 sample files, so the counts below don't change when you add your own docs
+    shutil.copytree(SAMPLE, docs, ignore=lambda d, names: [
+        n for n in names if Path(d) == SAMPLE and n not in {"README.md", "chunking-test.md", "guides"}])
     col = get_collection(path=tmp_path / "db", name="test_chunks", embedding_model="fake")
     sources = [{"name": "docs", "path": str(docs)}]
     run = lambda **kw: sync(sources=sources, collection=col, embed_fn=fake_embed, log=lambda *_: None, **kw)

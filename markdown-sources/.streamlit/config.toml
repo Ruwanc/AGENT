@@ -1,0 +1,9 @@
+# Streamlit settings for ui/chat_app.py (read when you run streamlit from the project root)
+[browser]
+gatherUsageStats = false     # don't send usage statistics to Streamlit
+
+[client]
+toolbarMode = "minimal"      # hide the Deploy button
+
+[server]
+address = "localhost"        # only reachable from this computer

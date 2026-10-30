@@ -5,6 +5,7 @@ ollama
 pytest
 requests
 python-dotenv
+streamlit            # ui/chat_app.py
 # optional, only for md_rag/langchain_loader.py
 langchain-core
 langchain-text-splitters

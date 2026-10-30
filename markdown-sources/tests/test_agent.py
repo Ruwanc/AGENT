@@ -270,3 +270,26 @@ def test_other_fields_need_a_cue_word(tmp_path):
     assert intake.values["technical_owner"] == "jane@corp.com"
     assert "budget_approver" not in intake.values                # not named -> asked next
     assert intake.current == "budget_approver"
+
+
+def test_example_from_hint_is_not_used_instead_of_the_reply(tmp_path):
+    """Bug report: user typed 'Cloud Engineering', the model returned the hint's example."""
+    copy_hint = lambda text, form, current, values: {"support_group": "RME-AppSupport"}
+    intake = Intake(FORM, requester="ruwan@corp.com", extract_fn=copy_hint,
+                    servicenow=FakeServiceNow(tmp_path))
+    intake.start()
+    intake.values.update({"account_name": "rme-orders-nonprod", "app_team_name": "RME"})
+    intake.current = "support_group"
+    reply = intake.handle("Cloud Engineering")
+    assert intake.values["support_group"] == "Cloud Engineering"
+    assert "RME-AppSupport" not in reply
+
+
+def test_extracted_value_for_asked_field_is_kept_when_typed(tmp_path):
+    """The extractor may still pick the value out of a longer sentence."""
+    pick = lambda text, form, current, values: {"support_group": "Cloud Engineering"}
+    intake = Intake(FORM, requester="ruwan@corp.com", extract_fn=pick, servicenow=FakeServiceNow(tmp_path))
+    intake.start()
+    intake.current = "support_group"
+    intake.handle("it will be supported by Cloud Engineering please")
+    assert intake.values["support_group"] == "Cloud Engineering"
