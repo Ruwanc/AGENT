@@ -34,7 +34,7 @@ LOGO = next((p for p in [Path(os.environ.get("AGENT_UI_LOGO", "")),
              if p.name and p.is_file()), None)
 AGENT_AVATAR = str(LOGO) if LOGO else "assistant"
 
-st.set_page_config(page_title="Docs & AWS Account Agent", page_icon=str(LOGO) if LOGO else "💬",
+st.set_page_config(page_title="CET Agent", page_icon=str(LOGO) if LOGO else "💬",
                    layout="centered")
 if LOGO:
     st.logo(str(LOGO), size="large")          # top of the sidebar
@@ -97,9 +97,9 @@ with st.sidebar:
 if LOGO:
     icon, heading = st.columns([1, 9], vertical_alignment="center")
     icon.image(str(LOGO), width=56)
-    heading.title("Docs & AWS Account Agent")
+    heading.title("CET Agent")
 else:
-    st.title("💬 Docs & AWS Account Agent")
+    st.title("💬 CET Agent")
 st.caption("Ask about your documents, or say \"I need a new AWS account\".")
 
 
