@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from md_rag.chunking import chunk_note
-from md_rag.indexer import sync
-from md_rag.retriever import expand_sections, search
-from md_rag.sources import load_source
-from md_rag.store import get_collection, reset_collection
+from cet_agent.rag.chunking import chunk_note
+from cet_agent.rag.indexer import sync
+from cet_agent.rag.retriever import expand_sections, search
+from cet_agent.rag.sources import load_source
+from cet_agent.rag.store import get_collection, reset_collection
 
-SAMPLE = Path(__file__).resolve().parents[1] / "sample_docs"
+SAMPLE = Path(__file__).resolve().parents[2] / "docs" / "samples"
 DIM = 128
 
 
@@ -32,9 +32,7 @@ def fake_embed(texts):
 @pytest.fixture
 def env(tmp_path):
     docs = tmp_path / "docs"
-    # only the 3 sample files, so the counts below don't change when you add your own docs
-    shutil.copytree(SAMPLE, docs, ignore=lambda d, names: [
-        n for n in names if Path(d) == SAMPLE and n not in {"README.md", "chunking-test.md", "guides"}])
+    shutil.copytree(SAMPLE, docs)        # docs/samples: the 3 sample files only
     col = get_collection(path=tmp_path / "db", name="test_chunks", embedding_model="fake")
     sources = [{"name": "docs", "path": str(docs)}]
     run = lambda **kw: sync(sources=sources, collection=col, embed_fn=fake_embed, log=lambda *_: None, **kw)

@@ -10,7 +10,7 @@ import argparse
 import sys
 
 import config
-from md_rag import chat
+from cet_agent.rag import chat
 
 
 def print_sources(result, show_context):

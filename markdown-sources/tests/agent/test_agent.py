@@ -6,11 +6,11 @@ import re
 import pytest
 
 import config
-from md_rag.agent import Agent, wants_aws_account
-from md_rag.forms import load_form
-from md_rag.intake import Intake
-from md_rag.servicenow import DryRunServiceNow, FakeServiceNow, LiveServiceNow, build_payload
-from md_rag.validators import validate
+from cet_agent.agent.router import Agent, wants_aws_account
+from cet_agent.agent.forms import load_form
+from cet_agent.agent.intake import Intake
+from cet_agent.integrations.servicenow import DryRunServiceNow, FakeServiceNow, LiveServiceNow, build_payload
+from cet_agent.agent.validators import validate
 
 FORM = load_form(config.ACCOUNT_FORM)
 F = FORM.field

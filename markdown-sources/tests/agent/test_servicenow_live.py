@@ -3,8 +3,8 @@ import pytest
 import requests
 
 import config
-from md_rag.forms import load_form
-from md_rag.servicenow import LiveServiceNow
+from cet_agent.agent.forms import load_form
+from cet_agent.integrations.servicenow import LiveServiceNow
 
 FORM = load_form(config.ACCOUNT_FORM)
 VALUES = {"requested_for": "jane.doe@corp.com", "account_name": "rme-orders-nonprod",
@@ -119,7 +119,7 @@ def test_missing_settings_are_listed_without_calling_servicenow():
 
 
 def test_intake_keeps_answers_when_servicenow_fails():
-    from md_rag.intake import Intake
+    from cet_agent.agent.intake import Intake
     intake = Intake(FORM, requester=VALUES["requested_for"], extract_fn=lambda *a: {},
                     servicenow=client(FakeHTTP(fail=401)))
     intake.values.update(VALUES)

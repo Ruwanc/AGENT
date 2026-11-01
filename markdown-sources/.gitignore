@@ -6,3 +6,10 @@ data/
 
 # secrets: never commit
 .env
+
+# leftovers from the folder restructure: safe to delete
+_to_delete/
+# uncomment if this repo is public (internal company content):
+# docs/company/
+# originals/
+# ui/logo.*

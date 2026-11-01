@@ -5,13 +5,13 @@ heading context better than TextLoader/DirectoryLoader), then wraps the result
 in langchain_core Documents so you can plug it into langchain-chroma,
 retrievers or LangGraph later.
 
-    from md_rag.langchain_loader import load_documents, load_chunks
+    from cet_agent.rag.langchain_loader import load_documents, load_chunks
 """
 from langchain_core.documents import Document
 
 from config import SOURCES
-from md_rag.chunking import chunk_note
-from md_rag.sources import chunk_id, chunk_metadata, load_all
+from cet_agent.rag.chunking import chunk_note
+from cet_agent.rag.sources import chunk_id, chunk_metadata, load_all
 
 
 def load_documents(sources=SOURCES):

@@ -16,8 +16,13 @@ try:
 except ImportError:          # python-dotenv not installed: plain environment variables still work
     pass
 
+DOCS_DIR = PROJECT_DIR / "docs"
 SOURCES = [
-    {"name": "docs", "path": os.environ.get("DOCS_PATH", str(PROJECT_DIR / "sample_docs"))},
+    # your real documents (tags.md, ...); DOCS_PATH overrides this folder
+    {"name": "company", "path": os.environ.get("DOCS_PATH", str(DOCS_DIR / "company"))},
+    # learning/test samples (Petcare README, install guide, chunking-test.md).
+    # Comment this line out to keep them out of answers; the tests don't need it.
+    {"name": "samples", "path": str(DOCS_DIR / "samples")},
     # {"name": "work-docs", "path": "/Users/you/repos/platform/docs"},
 ]
 

@@ -1,39 +1,70 @@
-# markdown-sources
+# CET Agent
 
-Load, chunk, embed and store plain Markdown files (READMEs, docs sites,
-wiki/Confluence/Notion exports) from one or more folders in a local ChromaDB,
-using an embedding model served by Ollama. Then search them, ask questions and get answers with sources from a local chat model,
-or request a new AWS account in the same chat (creates a ServiceNow ticket; fake for now).
+A local agent with two jobs, in one chat:
+
+1. **Docs Q&A (RAG):** loads, chunks and embeds plain Markdown files into a local ChromaDB
+   (embeddings and answers from models served by Ollama), then answers questions with sources.
+2. **AWS account requests:** say "I need a new AWS account"; it asks for each field, checks
+   the answers and creates a ServiceNow ticket (fake, dry run or live).
 
 ```
-markdown-sources/
-  config.py                   SOURCES (folders) + chunk settings
-  md_rag/sources.py           list files, frontmatter, cleaning, tags, titles, IDs, metadata
-  md_rag/chunking.py          heading-aware chunker (tables, code fences, size limit)
-  md_rag/embeddings.py        Ollama embeddings (chunks + questions, same model)
-  md_rag/store.py             ChromaDB: open, upsert, delete, query
-  md_rag/indexer.py           sync folders -> DB (new / changed / unchanged / deleted)
-  md_rag/retriever.py         search(question) -> top-k chunks
-  md_rag/chat.py              ask(question) -> answer + cited sources (Ollama chat model)
-  md_rag/agent.py             router: docs question -> RAG, "I need an AWS account" -> intake
-  md_rag/intake.py            asks the form fields step by step, validates, summary, confirm
-  md_rag/validators.py        plain-Python rules (lengths, patterns, one email, person not team)
-  md_rag/forms.py             loads a form definition from forms/*.yaml
-  md_rag/servicenow.py        creates the ticket: fake (JSON file) | dry_run | live (REST API)
-  forms/aws_account.yaml      the AWS account form: fields, questions, hints, rules
-  md_rag/langchain_loader.py  optional: same output as LangChain Documents
-  scripts/index.py            build or update the vector DB
-  scripts/search.py           ask a question, see the matching chunks
-  scripts/ask.py              ask a question, get an answer with sources (or chat mode)
-  scripts/agent.py            the agent chat: docs Q&A + AWS account requests
-  scripts/check_servicenow.py test the live ServiceNow login/settings (creates nothing)
-  ui/chat_app.py              browser chat for the agent (streamlit run ui/chat_app.py)
-  scripts/inspect_db.py       what is stored in the DB
-  scripts/check_embeddings.py health check: Ollama, vectors, meaning, DB, retrieval
-  scripts/inspect_chunks.py   report of every chunk, no Ollama/Chroma needed
-  tests/                      85 tests (pytest, no Ollama needed)
-  data/chroma_db/             the vector DB (generated, git-ignored)
-  sample_docs/                test files (README, guide, full chunking-test.md)
+cet-agent/
+├── README.md · requirements.txt · .env.example · .gitignore
+├── .env                        ServiceNow secrets (git-ignored, never commit)
+├── .streamlit/config.toml      UI settings
+├── config.py                   all settings: folders, models, chunk sizes, ServiceNow mode
+│
+├── cet_agent/                  the Python package
+│   ├── rag/                    documents -> answers
+│   │   ├── sources.py          list files, frontmatter, cleaning, tags, titles, IDs, metadata
+│   │   ├── chunking.py         heading-aware chunker (tables, code fences, size limit)
+│   │   ├── embeddings.py       Ollama embeddings (chunks + questions, same model)
+│   │   ├── store.py            ChromaDB: open, upsert, delete, query
+│   │   ├── indexer.py          sync folders -> DB (new / changed / unchanged / deleted)
+│   │   ├── retriever.py        search(question) -> top-k chunks, section expansion
+│   │   ├── chat.py             ask(question) -> answer + cited sources
+│   │   └── langchain_loader.py optional: same output as LangChain Documents
+│   ├── agent/                  conversation + requests
+│   │   ├── router.py           docs question -> RAG, "I need an AWS account" -> intake
+│   │   ├── intake.py           asks the form fields step by step, validates, summary, confirm
+│   │   ├── forms.py            loads a form definition from forms/*.yaml
+│   │   └── validators.py       plain-Python rules (lengths, patterns, one email, person not team)
+│   └── integrations/
+│       └── servicenow.py       creates the ticket: fake (JSON file) | dry_run | live (REST API)
+│
+├── forms/aws_account.yaml      the AWS account form: fields, questions, hints, rules
+├── docs/                       what the RAG indexes (config.SOURCES)
+│   ├── company/                your real documents (tags.md, ...)
+│   └── samples/                learning/test files (README, guides/install.md, chunking-test.md)
+├── originals/                  old versions kept for reference, not indexed (labels.md)
+├── ui/chat_app.py              browser chat "CET Agent" (streamlit run ui/chat_app.py)
+├── scripts/                    command-line tools, run as python -m scripts.<name>
+│   ├── index.py                build or update the vector DB
+│   ├── search.py · ask.py      matching chunks · answers with sources (or chat mode)
+│   ├── agent.py                terminal chat: docs Q&A + AWS account requests
+│   ├── inspect_db.py · inspect_chunks.py      what is stored · every chunk (no Ollama)
+│   └── check_embeddings.py · check_servicenow.py   health checks
+├── tests/                      99 tests (pytest, no Ollama or ServiceNow needed)
+│   ├── rag/                    sources, chunking, store, chat
+│   └── agent/                  intake/router, live ServiceNow client (fake HTTP)
+└── data/                       generated, git-ignored: chroma_db/, servicenow/ (fake tickets)
+```
+
+How the parts connect:
+
+```
+          ui/chat_app.py    scripts/agent.py
+                   \           /
+                    ▼         ▼
+                 agent/router.py
+                 /             \
+       docs question         AWS account request
+            ▼                       ▼
+       rag/chat.py           agent/intake.py ◄── forms/*.yaml, agent/validators.py
+            ▼                       ▼
+       rag/retriever.py      integrations/servicenow.py ──► ServiceNow
+            ▼
+       rag/store.py (ChromaDB) ◄── rag/indexer.py ◄── rag/chunking.py ◄── rag/sources.py ◄── docs/
 ```
 
 ## Run (macOS / Linux)
@@ -41,13 +72,13 @@ markdown-sources/
 ```bash
 cd ~/MyLearning/AGENT
 source .venv/bin/activate
-pip install -r markdown-sources/requirements.txt
-cd markdown-sources
+pip install -r cet-agent/requirements.txt
+cd cet-agent
 pytest -q
-python -m md_rag.sources                 # one line per loaded file
+python -m cet_agent.rag.sources                 # one line per loaded file
 python -m scripts.inspect_chunks         # every chunk
-python -m scripts.inspect_chunks docs --full
-python -m md_rag.langchain_loader        # LangChain Documents
+python -m scripts.inspect_chunks samples --full
+python -m cet_agent.rag.langchain_loader        # LangChain Documents
 ```
 
 ## Vector DB (needs Ollama running)
@@ -55,12 +86,12 @@ python -m md_rag.langchain_loader        # LangChain Documents
 ```bash
 ollama serve                                   # in another terminal, if not already running
 ollama pull qwen3-embedding:0.6b               # or the model set in config.py
-python -m md_rag.embeddings                    # check: "dimension: 1024" for qwen3-embedding:0.6b
+python -m cet_agent.rag.embeddings                    # check: "dimension: 1024" for qwen3-embedding:0.6b
 
 python -m scripts.index                        # embed + save everything
 python -m scripts.index                        # run again: only changed files are re-embedded
 python -m scripts.search "How do I activate the venv on Windows?"
-python -m scripts.search "port already in use" -k 3 --source docs
+python -m scripts.search "port already in use" -k 3 --source samples
 python -m scripts.inspect_db --file guides/install.md
 python -m scripts.index --reset                # wipe and rebuild (e.g. after changing the model)
 python -m scripts.check_embeddings             # is embedding + retrieval working? PASS/WARN/FAIL
@@ -81,7 +112,7 @@ python -m scripts.ask                                     # chat mode, follow-up
 python -m scripts.ask --model hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF "..."  # compare with the old 1B model
 ```
 
-How an answer is made (`md_rag/chat.py`):
+How an answer is made (`cet_agent/rag/chat.py`):
 
 1. Search the vector DB for the top `ANSWER_TOP_K` chunks.
 2. Drop chunks below `MIN_SIMILARITY`. If none are left, answer "I couldn't find that in
@@ -132,6 +163,10 @@ email, the ServiceNow mode (fake / dry_run / live) and the chat model; click *Ne
 conversation* after changing them. Run it from the project root so `.streamlit/config.toml`
 is used (no usage statistics sent, only reachable from your own computer).
 
+**Logo:** save your logo as `ui/logo.png` (or `.jpg` / `.svg`; a square image looks best).
+It replaces the tab icon, the sidebar and title icon, and the agent's chat avatar. Restart
+Streamlit after adding it. Without the file, emoji icons are used.
+
 ## Connect to the real ServiceNow (live mode)
 
 **1. Put the service account in `.env`** (git-ignored; never commit it or paste it into a chat):
@@ -176,7 +211,7 @@ check ServiceNow first: the request may have been created.
 
 ## Add your own folders
 
-Edit `SOURCES` in `config.py` (or set `DOCS_PATH` for the default one):
+Edit `SOURCES` in `config.py` (or set `DOCS_PATH` to replace `docs/company`):
 
 ```python
 SOURCES = [

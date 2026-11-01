@@ -115,7 +115,7 @@ def ask(question, k=ANSWER_TOP_K, source=None, history=(), min_similarity=MIN_SI
     search_fn, chat_fn and expand_fn can be replaced (tests use fakes so no Ollama is needed).
     """
     if search_fn is None:
-        from md_rag.retriever import search as search_fn
+        from cet_agent.rag.retriever import search as search_fn
     chat_fn = chat_fn or ollama_chat
 
     query = retrieval_query(question, history)
@@ -128,7 +128,7 @@ def ask(question, k=ANSWER_TOP_K, source=None, history=(), min_similarity=MIN_SI
 
     if expand:
         if expand_fn is None:
-            from md_rag.retriever import expand_sections as expand_fn
+            from cet_agent.rag.retriever import expand_sections as expand_fn
         hits = expand_fn(hits)
 
     text = chat_fn(build_messages(question, hits, history), on_token=on_token).strip()

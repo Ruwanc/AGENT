@@ -11,9 +11,9 @@ manifest file is needed:
                          should not wipe your index)
 """
 from config import SOURCES
-from md_rag.chunking import chunk_note
-from md_rag.sources import chunk_id, chunk_metadata, load_source
-from md_rag.store import delete_document, get_collection, stored_hashes, upsert_chunks
+from cet_agent.rag.chunking import chunk_note
+from cet_agent.rag.sources import chunk_id, chunk_metadata, load_source
+from cet_agent.rag.store import delete_document, get_collection, stored_hashes, upsert_chunks
 
 
 def index_document(collection, doc, embed_fn):
@@ -40,7 +40,7 @@ def sync(sources=SOURCES, collection=None, embed_fn=None, force=False, log=print
     embed_fn can be replaced in tests so they run without Ollama.
     """
     if embed_fn is None:
-        from md_rag.embeddings import embed_texts as embed_fn
+        from cet_agent.rag.embeddings import embed_texts as embed_fn
     collection = collection or get_collection()
     existing = stored_hashes(collection)
     stats = {"added": 0, "updated": 0, "unchanged": 0, "deleted": 0, "chunks_written": 0}

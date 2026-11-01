@@ -12,8 +12,8 @@ import json
 import sys
 
 import config
-from md_rag.forms import load_form
-from md_rag.servicenow import LiveServiceNow, build_payload
+from cet_agent.agent.forms import load_form
+from cet_agent.integrations.servicenow import LiveServiceNow, build_payload
 
 parser = argparse.ArgumentParser(description="Check the live ServiceNow setup (read-only)")
 parser.add_argument("--email", help="a user email to look up in sys_user")

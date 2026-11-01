@@ -8,8 +8,8 @@ Run from the project root:
 import sys
 
 from config import MAX_CHUNK_CHARS, SOURCES
-from md_rag.chunking import chunk_note
-from md_rag.sources import chunk_id, load_all
+from cet_agent.rag.chunking import chunk_note
+from cet_agent.rag.sources import chunk_id, load_all
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 full = "--full" in sys.argv

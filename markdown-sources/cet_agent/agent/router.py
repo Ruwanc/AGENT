@@ -16,8 +16,8 @@ import re
 from dataclasses import dataclass, field
 
 import config
-from md_rag.forms import load_form
-from md_rag.intake import Intake
+from cet_agent.agent.forms import load_form
+from cet_agent.agent.intake import Intake
 
 VERBS = r"(need|want|request|create|new|open|get|set ?up|provision|raise|order|apply)"
 CLOUD = r"(aws|amazon web services)"
@@ -45,7 +45,7 @@ class Agent:
         self.answer_fn = answer_fn          # question -> {"answer": ..., "sources": ...}
         self.extract_fn = extract_fn
         if servicenow is None:
-            from md_rag.servicenow import get_client
+            from cet_agent.integrations.servicenow import get_client
             servicenow = get_client()
         self.servicenow = servicenow
         self.intake = None

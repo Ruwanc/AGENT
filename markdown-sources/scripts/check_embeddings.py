@@ -18,7 +18,7 @@ import random
 import time
 
 import config
-from md_rag.embeddings import embed_query, embed_texts
+from cet_agent.rag.embeddings import embed_query, embed_texts
 
 results = []
 
@@ -76,7 +76,7 @@ else:
     report("WARN", "4 query prefix", "no prefix for this model; fine if the model needs none")
 
 # 5. DB matches config
-from md_rag.store import get_collection, query
+from cet_agent.rag.store import get_collection, query
 try:
     col = get_collection()
 except RuntimeError as e:

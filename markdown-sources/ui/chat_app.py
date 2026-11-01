@@ -7,7 +7,7 @@ Then open the link it prints (http://localhost:8501).
 Try it without Ollama (canned answers, nothing real is called):
     AGENT_UI_DEMO=1 streamlit run ui/chat_app.py
 
-The page only talks to md_rag.agent.Agent, the same object scripts/agent.py uses, so the
+The page only talks to cet_agent.agent.router.Agent, the same object scripts/agent.py uses, so the
 UI and the terminal chat behave the same way.
 """
 import os
@@ -19,9 +19,9 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # so "import config" works
 
 import config                                   # noqa: E402
-from md_rag import chat                         # noqa: E402
-from md_rag.agent import Agent                  # noqa: E402
-from md_rag.servicenow import get_client        # noqa: E402
+from cet_agent.rag import chat                         # noqa: E402
+from cet_agent.agent.router import Agent                  # noqa: E402
+from cet_agent.integrations.servicenow import get_client        # noqa: E402
 
 DEMO = os.environ.get("AGENT_UI_DEMO") == "1"
 MODES = ["fake", "dry_run", "live"]

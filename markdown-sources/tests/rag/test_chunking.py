@@ -1,4 +1,4 @@
-from md_rag.chunking import chunk_note, split_by_headings, split_long_section
+from cet_agent.rag.chunking import chunk_note, split_by_headings, split_long_section
 
 
 def test_nested_headings_give_paths():

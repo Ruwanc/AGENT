@@ -13,9 +13,9 @@ import json
 import sys
 
 import config
-from md_rag import chat
-from md_rag.agent import Agent
-from md_rag.servicenow import LiveServiceNow, get_client
+from cet_agent.rag import chat
+from cet_agent.agent.router import Agent
+from cet_agent.integrations.servicenow import LiveServiceNow, get_client
 
 parser = argparse.ArgumentParser(description="Docs Q&A + AWS account request agent")
 parser.add_argument("--requester", default=config.REQUESTER_EMAIL, help="your email (asked if empty)")

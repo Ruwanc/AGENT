@@ -6,7 +6,7 @@
 import argparse
 from collections import Counter
 
-from md_rag.store import get_collection
+from cet_agent.rag.store import get_collection
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file", help="note_path to show in full")

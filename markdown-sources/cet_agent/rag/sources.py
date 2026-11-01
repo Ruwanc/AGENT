@@ -1,7 +1,7 @@
 """Load Markdown files from one or more folders ("sources").
 
 Pure file reading: no Ollama, no Chroma. Each loaded document is a dict that
-md_rag.chunking.chunk_note() accepts, plus source info and a content hash:
+cet_agent.rag.chunking.chunk_note() accepts, plus source info and a content hash:
 
     {"source": "docs", "path": "guides/install.md", "title": "Install",
      "tags": ["setup"], "body": "<cleaned markdown>", "hash": "<sha256>",

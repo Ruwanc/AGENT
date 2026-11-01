@@ -9,8 +9,8 @@ import argparse
 import time
 
 from config import CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL, SOURCES
-from md_rag.indexer import sync
-from md_rag.store import reset_collection
+from cet_agent.rag.indexer import sync
+from cet_agent.rag.store import reset_collection
 
 parser = argparse.ArgumentParser(description="Index Markdown sources into ChromaDB")
 parser.add_argument("--force", action="store_true", help="re-embed files even if unchanged")

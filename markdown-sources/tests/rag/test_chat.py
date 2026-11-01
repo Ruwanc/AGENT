@@ -1,5 +1,5 @@
 """Answering tests with a fake search and a fake chat model (no Ollama needed)."""
-from md_rag import chat
+from cet_agent.rag import chat
 
 
 def hit(n, sim, text="Some text.", path="guides/install.md", heading="Install > Steps"):

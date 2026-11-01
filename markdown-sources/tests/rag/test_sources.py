@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from md_rag.chunking import chunk_note
-from md_rag.sources import (chunk_id, chunk_metadata, clean_body, extract_tags,
+from cet_agent.rag.chunking import chunk_note
+from cet_agent.rag.sources import (chunk_id, chunk_metadata, clean_body, extract_tags,
                             guess_title, list_markdown_files, load_document,
                             load_source, relative_path)
 
-SAMPLE_DOCS = Path(__file__).resolve().parents[1] / "sample_docs"
+SAMPLE_DOCS = Path(__file__).resolve().parents[2] / "docs" / "samples"
 
 
 def _write(root, rel, text):

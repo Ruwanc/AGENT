@@ -1,13 +1,13 @@
 """Ask a question and see which chunks the vector DB returns.
 
     python -m scripts.search "How do I activate the venv on Windows?"
-    python -m scripts.search "port already in use" -k 3 --source docs
+    python -m scripts.search "port already in use" -k 3 --source samples
     python -m scripts.search                       # interactive: blank line quits
 """
 import argparse
 
 from config import TOP_K
-from md_rag.retriever import search
+from cet_agent.rag.retriever import search
 
 
 def show(question, k, source):

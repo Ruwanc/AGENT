@@ -18,7 +18,7 @@ import json
 import re
 
 from config import CHAT_TEMPERATURE, EXTRACT_MODEL
-from md_rag.validators import validate
+from cet_agent.agent.validators import validate
 
 YES = {"yes", "y", "yep", "yeah", "confirm", "submit", "ok", "okay", "go ahead", "looks good", "correct"}
 CANCEL = {"cancel", "stop", "quit", "abort", "never mind", "nevermind", "no thanks"}
