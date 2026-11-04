@@ -1,0 +1,4 @@
+# Every change needs review from Cloud Engineering (the ruleset asks for 2 approvals).
+# Replace YOUR-ORG with your GitHub organisation; the team needs write access to this repo.
+*                @YOUR-ORG/cloud-engineering
+/.github/        @YOUR-ORG/cloud-engineering

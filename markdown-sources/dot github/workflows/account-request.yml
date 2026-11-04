@@ -1,0 +1,129 @@
+# Approved ServiceNow request -> new account file -> pull request.
+#
+# Started by ServiceNow (repository_dispatch, event type "aws-account-request") once the
+# manager approved and the SCTASK was assigned to Cloud Engineering, or by hand from the
+# Actions tab ("Run workflow") for testing.
+#
+# Request values are passed through environment variables only, never pasted into
+# shell commands, so text typed by a requester can't run as code.
+name: account-request
+
+on:
+  repository_dispatch:
+    types: [aws-account-request]
+  workflow_dispatch:
+    inputs:
+      ritm:            { description: "RITM number, e.g. RITM0012345", required: true }
+      sctask:          { description: "SCTASK number, e.g. SCTASK0012345", required: true }
+      account_name:    { description: "Account name, e.g. rme-orders-nonprod", required: true }
+      app_team_name:   { description: "App/Team name", required: true }
+      support_group:   { description: "ServiceNow support group", required: true }
+      technical_owner: { description: "Technical owner email", required: true }
+      budget_approver: { description: "Budget approver email", required: true }
+      requested_for:   { description: "Requester email", required: true }
+
+concurrency:
+  group: account-request-${{ github.event.client_payload.ritm || inputs.ritm }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REQ_RITM:            ${{ github.event.client_payload.ritm || inputs.ritm }}
+      REQ_SCTASK:          ${{ github.event.client_payload.sctask || inputs.sctask }}
+      REQ_ACCOUNT_NAME:    ${{ github.event.client_payload.account_name || inputs.account_name }}
+      REQ_APP_TEAM_NAME:   ${{ github.event.client_payload.app_team_name || inputs.app_team_name }}
+      REQ_SUPPORT_GROUP:   ${{ github.event.client_payload.support_group || inputs.support_group }}
+      REQ_TECHNICAL_OWNER: ${{ github.event.client_payload.technical_owner || inputs.technical_owner }}
+      REQ_BUDGET_APPROVER: ${{ github.event.client_payload.budget_approver || inputs.budget_approver }}
+      REQ_REQUESTED_FOR:   ${{ github.event.client_payload.requested_for || inputs.requested_for }}
+      BASE_BRANCH:         ${{ github.event.repository.default_branch }}
+      SN_INSTANCE:  ${{ secrets.SN_INSTANCE }}
+      SN_USERNAME:  ${{ secrets.SN_USERNAME }}
+      SN_PASSWORD:  ${{ secrets.SN_PASSWORD }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # A GitHub App token, not GITHUB_TOKEN: PRs opened with GITHUB_TOKEN don't start
+      # other workflows, so the checks and the Teams message would never run.
+      - name: Get bot token
+        id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.ACCOUNT_BOT_APP_ID }}
+          private-key: ${{ secrets.ACCOUNT_BOT_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app.outputs.token }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - run: pip install -q requests
+
+      - name: Write the account file
+        id: gen
+        run: python scripts/new_account.py --from-env --output-github
+
+      - name: Check formatting
+        env:
+          FILE: ${{ steps.gen.outputs.file }}
+        run: terraform fmt -check -diff "$FILE"
+
+      - name: Open (or find) the pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          FILE: ${{ steps.gen.outputs.file }}
+          BRANCH: ${{ steps.gen.outputs.branch }}
+          TITLE: ${{ steps.gen.outputs.pr_title }}
+          STATUS: ${{ steps.gen.outputs.status }}
+        run: |
+          set -euo pipefail
+          existing=$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$existing" ]; then
+            echo "PR already open: $existing"
+            echo "url=$existing" >> "$GITHUB_OUTPUT"
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$STATUS" = "exists" ]; then
+            echo "::error::The account file already exists on $BASE_BRANCH for this request and no PR is open."
+            exit 1
+          fi
+          git config user.name "cet-account-bot"
+          git config user.email "cet-account-bot@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add "$FILE"
+          git commit -m "$TITLE" -m "ServiceNow: $REQ_RITM / $REQ_SCTASK"
+          git push origin "$BRANCH"
+          gh label create aws-account-request --color 0E8A16 \
+            --description "Created from a ServiceNow AWS account request" --force
+          url=$(gh pr create --base "$BASE_BRANCH" --head "$BRANCH" --title "$TITLE" \
+                  --body-file pr_body.md --label aws-account-request)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "new=true" >> "$GITHUB_OUTPUT"
+
+      - name: Update ServiceNow task
+        env:
+          PR_URL: ${{ steps.pr.outputs.url }}
+        run: |
+          python scripts/servicenow.py start --sctask "$REQ_SCTASK" \
+            --text "Terraform PR opened, waiting for 2 Cloud Engineering approvals: $PR_URL"
+
+      - name: Tell ServiceNow the automation failed
+        if: failure()
+        run: |
+          python scripts/servicenow.py note --sctask "$REQ_SCTASK" \
+            --text "Account automation failed. Cloud Engineering will check: $RUN_URL"

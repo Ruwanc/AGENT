@@ -1,0 +1,63 @@
+# After a PR is merged to master: apply, then close the ServiceNow task with the account ID.
+# The "production" environment can require one more approval before apply (optional).
+name: terraform-apply
+
+on:
+  push:
+    branches: [master]
+    paths: ["terraform/**"]
+  workflow_dispatch: {}
+
+concurrency:
+  group: terraform-apply
+  cancel-in-progress: false      # never stop an apply half-way
+
+permissions:
+  contents: read
+  id-token: write       # OIDC login to AWS
+  pull-requests: read   # find the merged PR for this commit
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: AWS login (apply role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: terraform apply
+        run: |
+          terraform -chdir=terraform init -input=false
+          terraform -chdir=terraform apply -input=false -auto-approve -no-color
+          terraform -chdir=terraform output -json > outputs.json
+
+      - name: Close ServiceNow tasks and notify Teams
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SN_INSTANCE: ${{ secrets.SN_INSTANCE }}
+          SN_USERNAME: ${{ secrets.SN_USERNAME }}
+          SN_PASSWORD: ${{ secrets.SN_PASSWORD }}
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: pip install -q requests && python scripts/close_requests.py --sha "$GITHUB_SHA" --outputs outputs.json
+
+      - name: Tell Teams the apply failed
+        if: failure()
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python scripts/teams_notify.py --title "terraform apply FAILED on master" \
+            --text "An account may be half-created. Check the run before re-running." \
+            --url "$RUN_URL" --button "Open run"

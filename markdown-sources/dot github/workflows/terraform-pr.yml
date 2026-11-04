@@ -1,0 +1,126 @@
+# Every PR that touches terraform/: notify CET in Teams, run checks, post the plan.
+# "validate" and "plan" are required status checks in the master ruleset.
+name: terraform-pr
+
+on:
+  pull_request:
+    branches: [master]
+    paths: ["terraform/**", "config/**", "scripts/**", ".github/workflows/**"]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: terraform-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    if: github.event.action == 'opened' || github.event.action == 'ready_for_review'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Post to the CET Teams channel
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          python scripts/teams_notify.py --title "Review needed: $PR_TITLE" \
+            --text "Needs 2 approvals from Cloud Engineering before merge." \
+            --fact "Author=$PR_AUTHOR" --url "$PR_URL" --button "Review PR"
+
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: Unit tests (generator)
+        run: |
+          pip install -q -r requirements-dev.txt
+          pytest -q
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff terraform
+
+      - name: terraform validate
+        run: |
+          terraform -chdir=terraform init -backend=false -input=false
+          terraform -chdir=terraform validate
+
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --chdir=terraform --recursive
+
+      - name: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          quiet: true
+
+  plan:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write        # OIDC login to AWS
+      pull-requests: write   # plan comment
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: AWS login (read-only plan role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: terraform plan
+        id: plan
+        run: |
+          set -o pipefail
+          terraform -chdir=terraform init -input=false
+          terraform -chdir=terraform plan -input=false -no-color -lock=false -out=tfplan \
+            | tee plan.txt
+          terraform -chdir=terraform show -no-color tfplan | grep -E "^Plan:|^No changes" \
+            | tail -1 > summary.txt || true
+
+      - name: Comment the plan on the PR
+        if: always() && steps.plan.outcome != 'skipped'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- terraform-plan -->';
+            let plan = fs.existsSync('plan.txt') ? fs.readFileSync('plan.txt', 'utf8') : '(no plan output)';
+            const summary = fs.existsSync('summary.txt') ? fs.readFileSync('summary.txt', 'utf8').trim() : '';
+            if (plan.length > 60000) plan = plan.slice(-60000) + '\n(truncated: see the workflow log)';
+            const ok = '${{ steps.plan.outcome }}' === 'success';
+            const body = `${marker}\n### terraform plan ${ok ? '✅' : '❌'} ${summary}\n` +
+              `<details><summary>Show plan</summary>\n\n\`\`\`\n${plan}\n\`\`\`\n</details>\n\n` +
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const old = comments.find(c => c.body && c.body.startsWith(marker));
+            if (old) await github.rest.issues.updateComment({ owner, repo, comment_id: old.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
