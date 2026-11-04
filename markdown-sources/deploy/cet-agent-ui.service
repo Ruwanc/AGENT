@@ -1,7 +1,11 @@
 # systemd service for the CET Agent web UI (Streamlit), for RHEL 9.
 #
-# Install (replace YOUR_USER and the paths if yours differ):
-#   sudo cp deploy/cet-agent-ui.service /etc/systemd/system/
+# Layout (no SELinux exceptions needed):
+#   /opt/cet-agent     the app (a copy of markdown-sources), owned by service user "cetagent"
+#   /opt/cet-agent/.venv   its virtual environment, built from the Python in /opt/uv-python
+#
+# Install:
+#   sudo cp /opt/cet-agent/deploy/cet-agent-ui.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now cet-agent-ui
 #
@@ -14,17 +18,18 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=YOUR_USER
-Group=YOUR_USER
+User=cetagent
+Group=cetagent
 # Project folder: config.py reads .env from here, Streamlit reads .streamlit/config.toml from here
-WorkingDirectory=/home/YOUR_USER/markdown-sources
-ExecStart=/home/YOUR_USER/markdown-sources/.venv/bin/streamlit run ui/chat_app.py \
+WorkingDirectory=/opt/cet-agent
+ExecStart=/opt/cet-agent/.venv/bin/streamlit run ui/chat_app.py \
     --server.headless true \
     --server.address 127.0.0.1 \
     --server.port 8501
 # Same effect as `source .venv/bin/activate` (systemd runs no shell, so it can't `source`):
-Environment=VIRTUAL_ENV=/home/YOUR_USER/markdown-sources/.venv
-Environment=PATH=/home/YOUR_USER/markdown-sources/.venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=VIRTUAL_ENV=/opt/cet-agent/.venv
+Environment=PATH=/opt/cet-agent/.venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/opt/cet-agent
 Environment=PYTHONUNBUFFERED=1
 # Optional overrides (otherwise taken from .env / config.py), e.g.:
 # Environment=SERVICENOW_MODE=fake
@@ -33,10 +38,11 @@ Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=5
 
-# Hardening: no privilege escalation, private /tmp, read-only /usr /boot /etc
+# Hardening: no privilege escalation, private /tmp, read-only /usr /boot /etc, no access to /home
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
