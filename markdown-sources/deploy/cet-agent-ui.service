@@ -1,0 +1,42 @@
+# systemd service for the CET Agent web UI (Streamlit), for RHEL 9.
+#
+# Install (replace YOUR_USER and the paths if yours differ):
+#   sudo cp deploy/cet-agent-ui.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now cet-agent-ui
+#
+# Streamlit listens on 127.0.0.1:8501 only; nginx on port 80/443 forwards to it.
+
+[Unit]
+Description=CET Agent web UI (Streamlit)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+Group=YOUR_USER
+# Project folder: config.py reads .env from here, Streamlit reads .streamlit/config.toml from here
+WorkingDirectory=/home/YOUR_USER/markdown-sources
+ExecStart=/home/YOUR_USER/markdown-sources/.venv/bin/streamlit run ui/chat_app.py \
+    --server.headless true \
+    --server.address 127.0.0.1 \
+    --server.port 8501
+# Same effect as `source .venv/bin/activate` (systemd runs no shell, so it can't `source`):
+Environment=VIRTUAL_ENV=/home/YOUR_USER/markdown-sources/.venv
+Environment=PATH=/home/YOUR_USER/markdown-sources/.venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+# Optional overrides (otherwise taken from .env / config.py), e.g.:
+# Environment=SERVICENOW_MODE=fake
+# Environment=CHAT_MODEL=llama3.2:3b
+
+Restart=on-failure
+RestartSec=5
+
+# Hardening: no privilege escalation, private /tmp, read-only /usr /boot /etc
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

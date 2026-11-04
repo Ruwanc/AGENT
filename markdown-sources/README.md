@@ -81,6 +81,63 @@ python -m scripts.inspect_chunks samples --full
 python -m cet_agent.rag.langchain_loader        # LangChain Documents
 ```
 
+## RHEL 9: "unsupported version of sqlite3"
+
+On RHEL 9 (and other systems with an older SQLite), `python -m scripts.index` can stop with:
+
+```
+Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0.
+```
+
+RHEL 9 ships SQLite 3.34, and Python uses the operating system's SQLite, so a newer
+Python version alone doesn't help. Don't upgrade the system SQLite package (other RHEL
+packages depend on it). Instead, give the virtual environment its own newer SQLite.
+Nothing in the project code changes.
+
+**x86_64 machines** (check with `uname -m`):
+
+```bash
+source .venv/bin/activate
+
+# 1. Install a newer SQLite as a Python package
+pip install pysqlite3-binary
+
+# 2. Make Python in this venv use it instead of the OS one
+SP=$(python -c "import site; print(site.getsitepackages()[0])")
+cat > "$SP/sitecustomize.py" <<'EOF'
+# Use the newer SQLite from pysqlite3-binary instead of the OS one
+# (RHEL 9 ships 3.34; Chroma needs >= 3.35).
+try:
+    import sys
+    import pysqlite3
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
+EOF
+
+# 3. Check, then run
+python -c "import sqlite3; print(sqlite3.sqlite_version)"   # 3.45.x or newer
+python -m scripts.index
+```
+
+Python runs `sitecustomize.py` automatically every time it starts in this venv, so the old
+SQLite is swapped out before ChromaDB loads. The file lives inside `.venv`, not in the repo:
+if you delete and recreate the venv, repeat steps 1 and 2.
+
+**aarch64 machines, or if pip can't get `pysqlite3-binary`** (it only has x86_64 builds):
+use a Python from [uv](https://docs.astral.sh/uv/), which comes with a modern SQLite built in.
+
+```bash
+pip install --user uv                # or: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.13
+mv .venv .venv-old                   # keep the old one until the new one works
+uv venv --python 3.13 .venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+python -c "import sqlite3; print(sqlite3.sqlite_version)"   # 3.4x
+python -m scripts.index
+```
+
 ## Vector DB (needs Ollama running)
 
 ```bash
