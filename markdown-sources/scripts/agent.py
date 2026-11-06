@@ -1,11 +1,12 @@
-"""Chat with the agent: ask questions about your docs, or request a new AWS account.
+"""Chat with the agent: ask questions about your docs, or request a new AWS account / GCP project
+(whichever ENABLED_CLOUDS turns on).
 
 Run from the project root (Ollama running, index built with `python -m scripts.index`):
     python -m scripts.agent --requester you@company.com
     SERVICENOW_MODE=dry_run python -m scripts.agent       # show the payload, create nothing
     python -m scripts.agent --tickets                     # list fake tickets created so far
 
-Try:  "I need a new AWS account for the RME team"
+Try:  "I need a new AWS account for the RME team"   (or "I need a new GCP project" with ENABLED_CLOUDS=gcp)
       "what is a ServiceNow support group?"   (answered from your documents, even mid-request)
 """
 import argparse
@@ -17,7 +18,7 @@ from cet_agent.rag import chat
 from cet_agent.agent.router import Agent
 from cet_agent.integrations.servicenow import LiveServiceNow, get_client
 
-parser = argparse.ArgumentParser(description="Docs Q&A + AWS account request agent")
+parser = argparse.ArgumentParser(description="Docs Q&A + cloud account request agent")
 parser.add_argument("--requester", default=config.REQUESTER_EMAIL, help="your email (asked if empty)")
 parser.add_argument("--mode", default=config.SERVICENOW_MODE, choices=["fake", "dry_run", "live"],
                     help="where requests go (default from config.SERVICENOW_MODE)")
@@ -59,8 +60,10 @@ if args.mode == "live":
                  "\nRun python -m scripts.check_servicenow after filling them in.")
 agent = Agent(requester=args.requester, answer_fn=answer, servicenow=get_client(args.mode))
 agent_help = quiet_answer
-print(f"chat model: {args.model}   ServiceNow mode: {args.mode}   requester: {args.requester or '(will ask)'}")
-print("Ask about your documents, or say e.g. 'I need a new AWS account'. Blank line quits.\n")
+print(f"chat model: {args.model}   ServiceNow mode: {args.mode}   requester: {args.requester or '(will ask)'}"
+      f"   clouds: {', '.join(agent.clouds)}")
+example = {"aws": "I need a new AWS account", "gcp": "I need a new GCP project"}[agent.clouds[0]]
+print(f"Ask about your documents, or say e.g. '{example}'. Blank line quits.\n")
 
 try:
     while (text := input("You: ").strip()):
@@ -73,6 +76,8 @@ try:
             ticket = reply.data.get("ticket")
             if ticket and ticket.get("path"):
                 print(f"       (fake ticket saved to {ticket['path']})\n")
+        elif reply.text:                       # a short message from the agent itself (not RAG)
+            print("Agent: " + reply.text + "\n")
         else:
             print()
 except (KeyboardInterrupt, EOFError):

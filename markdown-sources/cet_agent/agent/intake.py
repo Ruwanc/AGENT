@@ -118,6 +118,9 @@ class Intake:
 
     def summary(self):
         lines = [f"  {n}. {f.label}: {self.values.get(f.name, '—')}" for n, f in enumerate(self.form.fields, 1)]
+        derived = self.form.derive(self.values)      # e.g. GCP Project ID, worked out, not asked
+        lines += [f"     {d.label}: {derived[d.name]} (made automatically)"
+                  for d in self.form.derived if d.name in derived]
         return ("Here is the request:\n" + "\n".join(lines) +
                 f"\n\nShall I create it and assign it to {self.form.ticket.get('assignment_group', 'the team')}?"
                 "\nReply yes, edit <number> (e.g. edit 3), or cancel.")

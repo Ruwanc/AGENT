@@ -1,4 +1,5 @@
-"""A simple web chat for the agent: ask about your docs, or request an AWS account.
+"""A simple web chat for the agent: ask about your docs, or request an AWS account / GCP project
+(whichever ENABLED_CLOUDS turns on).
 
 Run from the project root (Ollama running, index built with `python -m scripts.index`):
     streamlit run ui/chat_app.py
@@ -20,10 +21,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # so "import c
 
 import config                                   # noqa: E402
 from cet_agent.rag import chat                         # noqa: E402
-from cet_agent.agent.router import Agent                  # noqa: E402
+from cet_agent.agent.router import Agent, parse_enabled   # noqa: E402
 from cet_agent.integrations.servicenow import get_client        # noqa: E402
 
 DEMO = os.environ.get("AGENT_UI_DEMO") == "1"
+# Example request per cloud, shown only for the clouds ENABLED_CLOUDS turns on
+EXAMPLES = {"aws": "I need a new AWS account", "gcp": "I need a new GCP project"}
+TRY = [EXAMPLES[c] for c in parse_enabled(config.ENABLED_CLOUDS)]
 MODES = ["fake", "dry_run", "live"]
 
 # Your logo: save it as ui/logo.png (or .jpg / .svg), or point AGENT_UI_LOGO at a file.
@@ -79,7 +83,7 @@ if "agent" not in st.session_state:
 with st.sidebar:
     st.header("Settings")
     st.text_input("Your email", key="requester", placeholder="you@company.com",
-                  help="Used as 'Requested for' on AWS account requests.")
+                  help="Used as 'Requested for' on account and project requests.")
     st.selectbox("ServiceNow mode", MODES, key="mode",
                  help="fake = save a JSON ticket in data/servicenow/ · dry_run = show the payload · "
                       "live = real ServiceNow (needs .env)")
@@ -91,7 +95,7 @@ with st.sidebar:
     if DEMO:
         st.warning("Demo mode: no Ollama, canned answers.")
     st.divider()
-    st.caption("Try:\n- What are the mandatory Azure tags?\n- I need a new AWS account\n- cancel")
+    st.caption("Try:\n- What are the mandatory Azure tags?\n" + "".join(f"- {t}\n" for t in TRY) + "- cancel")
 
 # ---------------------------------------------------------------- chat
 if LOGO:
@@ -100,7 +104,7 @@ if LOGO:
     heading.title("CET Agent")
 else:
     st.title("💬 CET Agent")
-st.caption("Ask about your documents, or say \"I need a new AWS account\".")
+st.caption("Ask about your documents, or say " + " or ".join(f"\"{t}\"" for t in TRY) + ".")
 
 
 def show_sources(sources):

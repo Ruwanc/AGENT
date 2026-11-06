@@ -27,23 +27,47 @@ class Field:
 
 
 @dataclass
+class Derived:
+    """A value the agent works out itself from other answers (never asked), e.g. the GCP
+    project ID "syy-{project_name}". Shown in the summary and sent to ServiceNow."""
+    name: str
+    label: str
+    template: str                       # Python format string using field names
+    servicenow: str = ""                # variable name in the real ServiceNow form
+
+
+@dataclass
 class Form:
     name: str
     title: str
     fields: list
     ticket: dict
+    derived: list = field(default_factory=list)
 
     def field(self, name):
         return next(f for f in self.fields if f.name == name)
 
+    def derive(self, values):
+        """Derived values that can be worked out from the answers given so far."""
+        out = {}
+        for d in self.derived:
+            try:
+                out[d.name] = d.template.format(**values)
+            except KeyError:            # a field it needs isn't answered yet
+                pass
+        return out
+
+
+def _build(cls, raw, path):
+    unknown = set(raw) - set(cls.__dataclass_fields__)
+    if unknown:
+        raise ValueError(f"{path}: {cls.__name__.lower()} {raw.get('name')!r} has unknown keys {sorted(unknown)}")
+    return cls(**raw)
+
 
 def load_form(path):
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    known = set(Field.__dataclass_fields__)
-    fields = []
-    for raw in data["fields"]:
-        unknown = set(raw) - known
-        if unknown:
-            raise ValueError(f"{path}: field {raw.get('name')!r} has unknown keys {sorted(unknown)}")
-        fields.append(Field(**raw))
-    return Form(name=data["name"], title=data["title"], fields=fields, ticket=data.get("ticket", {}))
+    fields = [_build(Field, raw, path) for raw in data["fields"]]
+    derived = [_build(Derived, raw, path) for raw in data.get("derived", [])]
+    return Form(name=data["name"], title=data["title"], fields=fields,
+                ticket=data.get("ticket", {}), derived=derived)

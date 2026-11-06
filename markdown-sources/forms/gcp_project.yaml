@@ -1,0 +1,85 @@
+# GCP project request form. Same fields as forms/aws_account.yaml, with Project Name instead
+# of Account Name. Used only when ENABLED_CLOUDS includes gcp (see .env.example).
+# Field keys are explained at the top of aws_account.yaml.
+#
+# The GCP Project ID is never asked: it is made from the Project Name as "syy-<project name>"
+# (the "derived" section below) and shown in the summary before anything is sent.
+# GCP project ID rules: 6-30 characters, lowercase letters, digits and hyphens, starts with a
+# letter, doesn't end with a hyphen, unique across all of Google Cloud, can't be changed later.
+# The 4-character "syy-" prefix leaves 26 characters for the name.
+
+name: gcp_project
+title: GCP project request
+ticket:
+  short_description: "New GCP project: {project_id}"
+  assignment_group: Cloud Engineering
+  category: Cloud Account Request
+  variables:                          # fixed values sent with every GCP request
+    cloud_provider: gcp
+
+fields:
+  - name: requested_for
+    label: Requested for
+    type: email
+    question: "What is your email address? I'll raise the request on your behalf."
+    hint: "Your own work email, e.g. jane.doe@company.com."
+    prefill: requester
+    person_only: true
+    servicenow: requested_for
+    cues: [my email, my address, "i am", "i'm", "me:"]
+
+  - name: project_name
+    label: Project Name
+    type: text
+    question: "What short, meaningful name should the new GCP project have? I'll make the project ID from it (syy-<name>)."
+    hint: "3-26 characters: lowercase letters, numbers and hyphens, starting with a letter. Say what it is for, e.g. rme-orders-nonprod. Don't add syy- yourself, and avoid the words google, ssl, null and undefined."
+    normalize: slug
+    min_length: 3
+    max_length: 26
+    pattern: "^(?!syy-)(?!.*(google|ssl|null|undefined))[a-z][a-z0-9-]*[a-z0-9]$"
+    not_allowed: [test, project, gcp, new, temp, my-project, gcp-project, new-project]
+    servicenow: project_name
+    cues: [called, named, name it, project name, name is]
+
+  - name: app_team_name
+    label: App/Team name
+    type: text
+    question: "Which application or team is this project for?"
+    hint: "The application or team name, e.g. RME or Order Management."
+    min_length: 2
+    max_length: 60
+    servicenow: app_team_name
+    cues: [team, application, app]
+
+  - name: support_group
+    label: ServiceNow support group
+    type: text
+    question: "Which ServiceNow support group will support this project?"
+    hint: "The ServiceNow assignment group that handles incidents for it, e.g. RME-AppSupport."
+    min_length: 2
+    max_length: 80
+    servicenow: support_group
+    cues: [support group, assignment group, supported by, support team]
+
+  - name: technical_owner
+    label: Technical Owner
+    type: email
+    question: "Who is the technical owner? Please give one email address."
+    hint: "Exactly one email address, e.g. jane.doe@company.com."
+    servicenow: technical_owner
+    cues: [technical owner, tech owner, owner]
+
+  - name: budget_approver
+    label: Budget Approver
+    type: email
+    question: "Who approves the budget for this project? Please give the person's email address."
+    hint: "One person's email address, not a team mailbox or distribution list."
+    person_only: true
+    servicenow: budget_approver
+    cues: [budget, approver, approve, approval]
+
+derived:
+  - name: project_id
+    label: Project ID
+    template: "syy-{project_name}"
+    servicenow: project_id

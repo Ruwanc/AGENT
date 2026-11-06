@@ -80,6 +80,16 @@ MAX_CONTEXT_CHARS = 6000   # upper limit for all passages put in the prompt
 
 # agent.py / intake.py / servicenow.py (AWS account requests)
 ACCOUNT_FORM = PROJECT_DIR / "forms" / "aws_account.yaml"   # fields, questions and rules
+# One form per cloud. ENABLED_CLOUDS picks which ones the agent offers:
+#   aws      only AWS account requests (the default, same as before GCP was added)
+#   gcp      only GCP project requests
+#   aws,gcp  both; the agent asks "AWS account or GCP project?" when it isn't clear
+# Keep the ServiceNow catalog item's "Cloud provider" choices in step with this setting.
+CLOUD_FORMS = {
+    "aws": ACCOUNT_FORM,
+    "gcp": PROJECT_DIR / "forms" / "gcp_project.yaml",
+}
+ENABLED_CLOUDS = os.environ.get("ENABLED_CLOUDS", "aws")
 EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", CHAT_MODEL)  # model that pulls values out of replies
 REQUESTER_EMAIL = os.environ.get("REQUESTER_EMAIL", "")      # who is chatting; asked if empty
 ALLOWED_EMAIL_DOMAINS = []                                    # e.g. ["sysco.com"]; empty = any domain

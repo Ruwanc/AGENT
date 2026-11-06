@@ -184,7 +184,7 @@ How an answer is made (`cet_agent/rag/chat.py`):
 Tune `MIN_SIMILARITY` with `scripts.search`: look at the similarity of good and bad
 matches for a few questions and set it between them.
 
-## AWS account request agent
+## Cloud account request agent (AWS / GCP)
 
 ```bash
 python -m scripts.agent --requester you@company.com      # chat: questions + account requests
@@ -205,6 +205,28 @@ contains the value, so one email can't silently fill several fields.
 
 To change the form, edit the YAML: add a field, change a question, hint, cue or rule. No code
 change is needed.
+
+### AWS, GCP or both (`ENABLED_CLOUDS`)
+
+One setting in `.env` decides which requests the agent takes (restart the UI after changing it):
+
+| `ENABLED_CLOUDS` | What the agent does |
+|---|---|
+| `aws` (default) | AWS account requests only, exactly as before. A GCP request gets "not available here yet". |
+| `gcp` | GCP project requests only (`forms/gcp_project.yaml`). An AWS request gets "not available here yet". |
+| `aws,gcp` | Both. "I need a new cloud account" gets "AWS account or GCP project?". Asking for both in one message runs them one after the other (two tickets). |
+
+The GCP form has the same fields as AWS, with **Project Name** instead of Account Name. The
+**Project ID** is never asked: it is made as `syy-<project name>` and shown in the summary
+before anything is sent. Project names are 3-26 characters so the ID stays within Google's
+30-character limit; the ID must be unique across all of Google Cloud, which the GCP repo's PR
+check confirms. GCP tickets carry `project_name`, `project_id` and `cloud_provider: gcp`; AWS
+tickets are unchanged.
+
+Before turning `gcp` on with `SERVICENOW_MODE=live`, the ServiceNow catalog item needs the
+Cloud provider choice and the GCP variables (`project_name`, `project_id`, `cloud_provider`),
+or those values are dropped. Keep the catalog item's Cloud provider choices in step with this
+setting, so the ServiceNow portal offers the same clouds as the chat.
 
 ## Chat in the browser (simple UI)
 

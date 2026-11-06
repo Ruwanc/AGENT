@@ -16,9 +16,15 @@ from config import SERVICENOW_FAKE_DIR, SERVICENOW_MODE
 
 
 def build_payload(form, values):
-    """Turn the collected values into a ticket payload (same shape for every mode)."""
+    """Turn the collected values into a ticket payload (same shape for every mode).
+
+    Derived values (e.g. the GCP project ID) and fixed ticket variables from the form's
+    YAML (e.g. cloud_provider: gcp) are added; forms without them (AWS) are unchanged."""
+    values = {**values, **form.derive(values)}
     variables = {(f.servicenow or f.name): values.get(f.name, "") for f in form.fields
                  if f.name != "requested_for"}
+    variables.update({(d.servicenow or d.name): values.get(d.name, "") for d in form.derived})
+    variables.update(form.ticket.get("variables", {}))
     return {
         "catalog_item": form.title,
         "short_description": form.ticket.get("short_description", form.title).format(**values),
