@@ -7,3 +7,7 @@ toolbarMode = "minimal"      # hide the Deploy button
 
 [server]
 address = "localhost"        # only reachable from this computer
+
+[theme]
+base = "light"            # the CET UIs are designed for light; stops dark-mode browsers turning text white
+primaryColor = "#0A5BA8"   # brand blue for focus outlines and accents (Streamlit default is red)
