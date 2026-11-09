@@ -16,7 +16,10 @@ import base64
 import html
 import json
 import os
+import re
+import struct
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -38,6 +41,46 @@ UI_DIR = Path(__file__).resolve().parent
 LOGO = next((p for p in [Path(os.environ.get("AGENT_UI_LOGO", "")),
                          *(UI_DIR / f"logo.{e}" for e in ("svg", "png", "jpg", "jpeg"))]
              if p.name and p.is_file()), None)
+# Optional square icon for the chat avatar and browser tab (ui/logo-icon.svg or .png).
+ICON = next((p for p in [Path(os.environ.get("AGENT_UI_ICON", "")),
+                         *(UI_DIR / f"logo-icon.{e}" for e in ("svg", "png", "jpg", "jpeg"))]
+             if p.name and p.is_file()), None)
+
+
+def _ratio(path):
+    """Width / height of an image file (SVG viewBox or size, PNG header); 1.0 when unknown."""
+    try:
+        if path.suffix == ".svg":
+            head = path.read_text(errors="ignore")[:4000]
+            m = re.search(r'viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)', head)
+            if m:
+                return float(m[1]) / float(m[2])
+            w, h = re.search(r'\bwidth="([\d.]+)', head), re.search(r'\bheight="([\d.]+)', head)
+            return float(w[1]) / float(h[1]) if w and h else 1.0
+        if path.suffix == ".png":
+            w, h = struct.unpack(">II", path.read_bytes()[16:24])
+            return w / h
+    except (OSError, ValueError, ZeroDivisionError, struct.error):
+        pass
+    return 1.0
+
+
+# A wide logo (a wordmark) is shown at its own shape in the sidebar; the round chat avatar and
+# the browser tab need a square: ui/logo-icon.*, a square logo, or a "CP" badge in the brand blue.
+WIDE = bool(LOGO) and _ratio(LOGO) > 1.3
+
+
+def _badge():
+    path = Path(tempfile.gettempdir()) / f"cet-provisioner-badge-{BRAND.lstrip('#')}.svg"
+    if not path.exists():
+        path.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+                        f'<rect width="64" height="64" rx="16" fill="{BRAND}"/>'
+                        '<text x="32" y="41" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" '
+                        'font-size="25" font-weight="700" fill="#FFFFFF">CP</text></svg>')
+    return path
+
+
+SQUARE = ICON or (LOGO if LOGO and not WIDE else None) or (_badge() if WIDE else None)
 
 # Starter questions follow ENABLED_CLOUDS: one request button per enabled cloud
 CLOUDS = parse_enabled(config.ENABLED_CLOUDS)
@@ -46,7 +89,7 @@ REQUEST_STARTERS = {"aws": ("New AWS account", "I need a new AWS account"),
 STARTERS = [("Tagging standard", "What are the mandatory tags?")] + [REQUEST_STARTERS[c] for c in CLOUDS]
 WHAT = " or ".join({"aws": "a new AWS account", "gcp": "a new GCP project"}[c] for c in CLOUDS)
 
-st.set_page_config(page_title="CET Provisioner", page_icon=str(LOGO) if LOGO else "☁️",
+st.set_page_config(page_title="CET Provisioner", page_icon=str(SQUARE) if SQUARE else "☁️",
                    layout="wide", initial_sidebar_state="expanded")
 
 
@@ -63,6 +106,13 @@ def _logo_html(size, radius):
         return (f'<img src="data:image/{kind};base64,{data}" alt="logo" '
                 f'style="width:{size}px;height:{size}px;border-radius:{radius}px;object-fit:contain">')
     return f'<div class="cet-logo-ph" style="width:{size}px;height:{size}px;border-radius:{radius}px">LOGO</div>'
+
+
+def _wide_logo_html():
+    kind = "svg+xml" if LOGO.suffix == ".svg" else LOGO.suffix.lstrip(".").replace("jpg", "jpeg")
+    data = base64.b64encode(LOGO.read_bytes()).decode()
+    return (f'<img src="data:image/{kind};base64,{data}" alt="logo" '
+            'style="display:block;width:100%;max-width:200px;height:auto">')
 
 
 RGB = _rgb(BRAND)
@@ -90,6 +140,7 @@ code, .cet-mono {{ font-family:'JetBrains Mono', ui-monospace, monospace !import
 [data-testid="stSidebar"] {{ background:var(--side); border-right:1px solid var(--line); }}
 [data-testid="stSidebar"] .block-container, [data-testid="stSidebarUserContent"] {{ padding-top:1rem; }}
 .cet-brand {{ display:flex; align-items:center; gap:12px; padding:2px 4px 8px; }}
+.cet-brand.wide {{ flex-direction:column; align-items:flex-start; gap:4px; padding:0 4px 10px; }}
 .cet-brand .n {{ font-size:16px; font-weight:700; color:var(--ink); line-height:1.2; }}
 .cet-brand .s {{ font-size:12px; color:var(--muted); }}
 .cet-logo-ph {{ border:1px dashed #A9B6C6; display:flex; align-items:center; justify-content:center;
@@ -263,8 +314,12 @@ def fake_tickets(limit=5):
 
 # ---- left panel -----------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown(f'<div class="cet-brand">{_logo_html(36, 10)}<div><div class="n">CET Provisioner</div>'
-                f'<div class="s">Cloud Engineering Team</div></div></div>', unsafe_allow_html=True)
+    if WIDE:      # wordmark logo: full width; it carries the name, so only the team line is added
+        st.markdown(f'<div class="cet-brand wide">{_wide_logo_html()}'
+                    '<div class="s">Cloud Engineering Team</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="cet-brand">{_logo_html(36, 10)}<div><div class="n">CET Provisioner</div>'
+                    f'<div class="s">Cloud Engineering Team</div></div></div>', unsafe_allow_html=True)
     with st.container(key="newchat"):
         if st.button("＋  New chat", key="new_chat"):
             new_chat()
@@ -348,7 +403,7 @@ def request_card():
                 f'<div class="cet-grid">{"".join(rows)}</div></div>', unsafe_allow_html=True)
 
 
-avatar = str(LOGO) if LOGO else "assistant"
+avatar = str(SQUARE) if SQUARE else "assistant"
 
 
 def show(m):
